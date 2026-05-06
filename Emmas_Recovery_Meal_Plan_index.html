@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Emma's Meals">
+<title>Emma's Recovery Meal Plan</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e0e0e0; min-height: 100vh; min-height: 100dvh; overflow-x: hidden; }
+  button { font-family: inherit; }
+  ::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+const e = React.createElement;
+const { useState } = React;
+
+const DIETARY_GOALS = {
+  sodium: { target: 1500, unit: "mg", label: "Sodium", color: "#E74C3C" },
+  iron: { target: 18, unit: "mg", label: "Iron", color: "#27AE60" },
+  protein: { target: 65, unit: "g", label: "Protein", color: "#3498DB" },
+  fiber: { target: 25, unit: "g", label: "Fiber", color: "#F39C12" },
+  carbs: { target: 135, unit: "g", label: "Net Carbs", color: "#9B59B6" },
+  vitC: { target: 75, unit: "mg", label: "Vitamin C", color: "#E67E22" },
+};
+
+const WEEK_LABELS = ["Week 1: Gentle Recovery", "Week 2: Building Strength", "Week 3: Iron & Energy", "Week 4: Sustained Wellness"];
+
+const CONDITIONS = [
+  { name: "Anemia", icon: "\u{1FA78}", rule: "High iron foods + Vitamin C for absorption", status: "critical" },
+  { name: "Low Albumin", icon: "\u{1F4AA}", rule: "Protein-rich: fish, eggs, legumes at every meal", status: "critical" },
+  { name: "Diabetes T2", icon: "\u{1F36C}", rule: "Low glycemic, ~135g net carbs/day, consistent timing", status: "warning" },
+  { name: "Hypertension", icon: "\u{2764}\uFE0F", rule: "DASH diet, sodium < 1,500mg/day", status: "warning" },
+  { name: "AKI Recovery", icon: "\u{1FAD8}", rule: "Moderate protein, potassium 3.5-5.1 (currently normal)", status: "monitor" },
+  { name: "Gastritis", icon: "\u{1F922}", rule: "Soft/cooked foods, avoid raw/spicy/acidic early on", status: "monitor" },
+  { name: "Blood Thinners", icon: "\u{1F48A}", rule: "CONSISTENT Vitamin K\u2014don't avoid greens, just keep steady", status: "warning" },
+  { name: "Thrombocytosis", icon: "\u{1F52C}", rule: "Anti-inflammatory omega-3 fish, avoid excess iron supplements", status: "monitor" },
+];
+
+const mealPlan = {
+  1: [
+    { day: "Monday",
+      breakfast: { name: "Soft Scrambled Eggs with Wilted Spinach", desc: "2 eggs scrambled soft with 1 cup baby spinach, 1 slice whole grain toast. Herbal tea.", iron: 4, protein: 18, sodium: 280, carbs: 16, fiber: 3, vitC: 12 },
+      lunch: { name: "Lemon-Herb Baked Tilapia with Turnip Mash", desc: "4 oz tilapia baked with lemon & dill, \u00BD cup mashed turnip root, steamed green beans.", iron: 2, protein: 26, sodium: 320, carbs: 18, fiber: 5, vitC: 22 },
+      snack: { name: "Banana & Almond Butter", desc: "\u00BD medium banana with 1 tbsp almond butter.", iron: 0.5, protein: 4, sodium: 35, carbs: 16, fiber: 2, vitC: 5 },
+      dinner: { name: "Slow-Cooked Collard Greens with Black-Eyed Peas", desc: "1.5 cups collards cooked with smoked turkey neck (low-sodium), \u00BD cup black-eyed peas, small cornbread muffin.", iron: 5, protein: 16, sodium: 380, carbs: 32, fiber: 8, vitC: 35 },
+    },
+    { day: "Tuesday",
+      breakfast: { name: "Oatmeal with Stewed Prunes & Walnuts", desc: "\u00BD cup steel-cut oats, 3 stewed prunes, 1 tbsp walnuts, cinnamon. No added sugar.", iron: 3, protein: 8, sodium: 10, carbs: 32, fiber: 5, vitC: 2 },
+      lunch: { name: "Salmon Salad on Bed of Mixed Greens", desc: "3 oz canned salmon (rinsed), mixed greens, cucumber, cherry tomatoes, olive oil & lemon dressing.", iron: 2, protein: 22, sodium: 290, carbs: 8, fiber: 3, vitC: 18 },
+      snack: { name: "Steamed Edamame", desc: "\u00BD cup shelled edamame with a squeeze of lemon.", iron: 2, protein: 9, sodium: 5, carbs: 5, fiber: 4, vitC: 5 },
+      dinner: { name: "Turkey Meatloaf with Turnip Greens & Sweet Potato", desc: "4 oz ground turkey mini-loaf (no-salt seasoning), 1 cup braised turnip greens, \u00BD small baked sweet potato.", iron: 3, protein: 28, sodium: 340, carbs: 28, fiber: 6, vitC: 30 },
+    },
+    { day: "Wednesday",
+      breakfast: { name: "Cottage Cheese & Berry Bowl", desc: "\u00BD cup low-sodium cottage cheese, \u00BD cup mixed berries, 1 tbsp ground flaxseed.", iron: 1, protein: 14, sodium: 230, carbs: 14, fiber: 4, vitC: 28 },
+      lunch: { name: "Black Bean & Vegetable Soup", desc: "1.5 cups homemade black bean soup with carrots, celery, cumin. 1 small whole wheat roll.", iron: 4, protein: 14, sodium: 350, carbs: 34, fiber: 10, vitC: 12 },
+      snack: { name: "Apple Slices with Cinnamon", desc: "1 small apple, sliced, dusted with cinnamon.", iron: 0.3, protein: 0.5, sodium: 0, carbs: 18, fiber: 3, vitC: 6 },
+      dinner: { name: "Herb-Crusted Cod with Roasted Broccoli & Quinoa", desc: "4 oz cod baked with herbs, \u00BD cup roasted broccoli, \u2153 cup cooked quinoa.", iron: 3, protein: 30, sodium: 280, carbs: 22, fiber: 5, vitC: 40 },
+    },
+    { day: "Thursday",
+      breakfast: { name: "Veggie Egg Muffins (make-ahead)", desc: "2 egg muffins with bell pepper, spinach, mushroom. Side of \u00BD grapefruit.", iron: 3, protein: 14, sodium: 180, carbs: 12, fiber: 2, vitC: 45 },
+      lunch: { name: "Mustard Greens & White Bean Stew", desc: "1.5 cups braised mustard greens with cannellini beans, garlic, onion, low-sodium broth.", iron: 5, protein: 14, sodium: 310, carbs: 28, fiber: 9, vitC: 38 },
+      snack: { name: "Hummus with Cucumber Slices", desc: "3 tbsp homemade hummus, \u00BD cup cucumber rounds.", iron: 1, protein: 4, sodium: 100, carbs: 8, fiber: 2, vitC: 4 },
+      dinner: { name: "Baked Salmon with Dill, Steamed Asparagus & Brown Rice", desc: "4 oz wild salmon, 6 asparagus spears, \u2153 cup brown rice.", iron: 2, protein: 30, sodium: 260, carbs: 22, fiber: 4, vitC: 14 },
+    },
+    { day: "Friday",
+      breakfast: { name: "Whole Wheat Toast with Avocado & Egg", desc: "1 slice whole grain toast, \u00BC avocado mashed, 1 poached egg. Orange slices.", iron: 2, protein: 12, sodium: 200, carbs: 20, fiber: 5, vitC: 30 },
+      lunch: { name: "Turnip Root & Carrot Soup", desc: "1.5 cups pur\u00E9ed turnip-carrot soup with ginger & turmeric, 4 whole wheat crackers.", iron: 2, protein: 6, sodium: 280, carbs: 30, fiber: 6, vitC: 22 },
+      snack: { name: "Dried Apricots & Pumpkin Seeds", desc: "4 dried apricots + 1 tbsp pumpkin seeds.", iron: 3, protein: 5, sodium: 5, carbs: 14, fiber: 2, vitC: 2 },
+      dinner: { name: "Shrimp Stir-Fry with Bok Choy & Brown Rice Noodles", desc: "4 oz shrimp, bok choy, snap peas, garlic, ginger, low-sodium soy alternative, \u00BD cup noodles.", iron: 3, protein: 26, sodium: 400, carbs: 28, fiber: 4, vitC: 32 },
+    },
+    { day: "Saturday",
+      breakfast: { name: "Smoothie: Spinach, Banana, Peanut Butter", desc: "1 cup spinach, \u00BD banana, 1 tbsp PB, almond milk, 1 tbsp flaxseed.", iron: 3, protein: 10, sodium: 80, carbs: 22, fiber: 5, vitC: 12 },
+      lunch: { name: "Grilled Chicken & Kale Caesar", desc: "3 oz grilled chicken, 2 cups kale, yogurt caesar dressing, whole grain croutons.", iron: 3, protein: 28, sodium: 320, carbs: 16, fiber: 3, vitC: 80 },
+      snack: { name: "Pear with String Cheese", desc: "1 small pear, 1 part-skim string cheese.", iron: 0.5, protein: 7, sodium: 170, carbs: 18, fiber: 4, vitC: 5 },
+      dinner: { name: "Braised Turnip Greens with Smoked Turkey & Cornbread", desc: "1.5 cups braised turnip greens, 2 oz smoked turkey, 1 small cornbread muffin, \u00BD cup lima beans.", iron: 5, protein: 22, sodium: 380, carbs: 34, fiber: 8, vitC: 40 },
+    },
+    { day: "Sunday",
+      breakfast: { name: "Sweet Potato Hash with Egg", desc: "\u00BD cup diced sweet potato saut\u00E9ed with onion & bell pepper, topped with 1 fried egg.", iron: 2, protein: 10, sodium: 160, carbs: 24, fiber: 4, vitC: 35 },
+      lunch: { name: "Lentil & Vegetable Stew", desc: "1.5 cups red lentil stew with carrots, tomatoes, cumin, turmeric. Side of steamed kale.", iron: 5, protein: 16, sodium: 300, carbs: 32, fiber: 10, vitC: 28 },
+      snack: { name: "Greek Yogurt with Berries", desc: "\u00BD cup plain Greek yogurt, \u00BC cup blueberries, drizzle of honey.", iron: 0.5, protein: 12, sodium: 45, carbs: 14, fiber: 1, vitC: 4 },
+      dinner: { name: "Baked Trout with Roasted Root Vegetables", desc: "4 oz rainbow trout, \u00BD cup roasted turnip/carrot/parsnip medley, steamed green beans.", iron: 2, protein: 28, sodium: 280, carbs: 20, fiber: 5, vitC: 18 },
+    },
+  ],
+  2: [
+    { day: "Monday",
+      breakfast: { name: "Fortified Cream of Wheat with Strawberries", desc: "\u00BE cup iron-fortified cream of wheat, \u00BD cup sliced strawberries, 1 tbsp flaxseed.", iron: 9, protein: 8, sodium: 5, carbs: 28, fiber: 3, vitC: 42 },
+      lunch: { name: "Sardine & Avocado Toast", desc: "2 oz sardines (water-packed) on whole grain toast, \u00BC avocado, lemon, arugula.", iron: 3, protein: 18, sodium: 280, carbs: 16, fiber: 5, vitC: 14 },
+      snack: { name: "Trail Mix (homemade)", desc: "1 tbsp pumpkin seeds, 1 tbsp dried cranberries, 6 almonds.", iron: 2, protein: 5, sodium: 5, carbs: 12, fiber: 2, vitC: 1 },
+      dinner: { name: "Chicken & Vegetable Curry (mild)", desc: "4 oz chicken thigh in coconut-turmeric sauce, spinach, chickpeas, \u2153 cup brown rice.", iron: 4, protein: 32, sodium: 360, carbs: 34, fiber: 7, vitC: 18 },
+    },
+    { day: "Tuesday",
+      breakfast: { name: "Egg & Cheese Wrap", desc: "1 whole wheat tortilla, 2 scrambled eggs, 1 oz low-fat cheese, salsa.", iron: 3, protein: 22, sodium: 380, carbs: 22, fiber: 3, vitC: 8 },
+      lunch: { name: "Tuna Stuffed Bell Pepper", desc: "1 bell pepper stuffed with 3 oz tuna, quinoa, herbs, baked.", iron: 2, protein: 24, sodium: 300, carbs: 18, fiber: 4, vitC: 120 },
+      snack: { name: "Celery with Almond Butter", desc: "3 celery sticks with 1 tbsp almond butter.", iron: 0.5, protein: 4, sodium: 40, carbs: 5, fiber: 2, vitC: 2 },
+      dinner: { name: "Pan-Seared Catfish with Collards & Black-Eyed Peas", desc: "4 oz catfish with Cajun spices (no-salt), 1 cup collards, \u00BD cup black-eyed peas.", iron: 5, protein: 30, sodium: 340, carbs: 26, fiber: 8, vitC: 35 },
+    },
+    { day: "Wednesday",
+      breakfast: { name: "Overnight Oats with Chia & Peaches", desc: "\u00BD cup oats, 1 tbsp chia seeds, \u00BD cup peaches, almond milk.", iron: 3, protein: 10, sodium: 20, carbs: 32, fiber: 7, vitC: 5 },
+      lunch: { name: "Mediterranean Chickpea Bowl", desc: "\u00BD cup chickpeas, cucumber, tomato, olive oil, lemon, fresh herbs, over greens.", iron: 3, protein: 12, sodium: 250, carbs: 26, fiber: 8, vitC: 22 },
+      snack: { name: "Orange Segments", desc: "1 medium orange.", iron: 0.2, protein: 1, sodium: 0, carbs: 15, fiber: 3, vitC: 70 },
+      dinner: { name: "Herb Baked Grouper with Roasted Turnips & Kale", desc: "4 oz grouper, \u00BD cup roasted turnip cubes, 1 cup saut\u00E9ed kale with garlic.", iron: 3, protein: 30, sodium: 300, carbs: 16, fiber: 5, vitC: 80 },
+    },
+    { day: "Thursday",
+      breakfast: { name: "Spinach & Mushroom Omelet", desc: "3-egg-white omelet with spinach, mushrooms, 1 oz feta. Whole wheat toast.", iron: 3, protein: 20, sodium: 340, carbs: 16, fiber: 3, vitC: 8 },
+      lunch: { name: "Sweet Potato & Black Bean Bowl", desc: "\u00BD baked sweet potato, \u00BD cup black beans, salsa, Greek yogurt, cilantro.", iron: 3, protein: 14, sodium: 280, carbs: 38, fiber: 10, vitC: 22 },
+      snack: { name: "Kiwi & Walnuts", desc: "1 kiwi, 5 walnut halves.", iron: 0.5, protein: 3, sodium: 0, carbs: 14, fiber: 3, vitC: 64 },
+      dinner: { name: "Braised Mustard Greens with Grilled Chicken Thigh", desc: "1.5 cups mustard greens, 4 oz chicken thigh, \u2153 cup wild rice.", iron: 4, protein: 32, sodium: 320, carbs: 24, fiber: 5, vitC: 38 },
+    },
+    { day: "Friday",
+      breakfast: { name: "Berry Protein Smoothie", desc: "\u00BD cup blueberries, \u00BD cup strawberries, 1 scoop plant protein, spinach, almond milk.", iron: 3, protein: 22, sodium: 100, carbs: 22, fiber: 5, vitC: 55 },
+      lunch: { name: "White Bean & Turnip Green Soup", desc: "1.5 cups soup with cannellini beans, turnip greens, carrots, low-sodium broth.", iron: 4, protein: 14, sodium: 320, carbs: 30, fiber: 9, vitC: 30 },
+      snack: { name: "Hard-Boiled Egg", desc: "1 hard-boiled egg with pinch of paprika.", iron: 1, protein: 6, sodium: 60, carbs: 0, fiber: 0, vitC: 0 },
+      dinner: { name: "Lemon Garlic Shrimp with Zucchini Noodles", desc: "5 oz shrimp, zucchini spirals, garlic, olive oil, cherry tomatoes, fresh basil.", iron: 3, protein: 30, sodium: 350, carbs: 12, fiber: 3, vitC: 35 },
+    },
+    { day: "Saturday",
+      breakfast: { name: "Buckwheat Pancakes with Blueberries", desc: "2 small buckwheat pancakes, \u00BD cup blueberries, dollop of Greek yogurt.", iron: 2, protein: 10, sodium: 180, carbs: 30, fiber: 4, vitC: 8 },
+      lunch: { name: "Grilled Fish Tacos (soft corn)", desc: "3 oz grilled mahi-mahi, 2 corn tortillas, cabbage slaw, lime crema.", iron: 2, protein: 22, sodium: 300, carbs: 26, fiber: 4, vitC: 28 },
+      snack: { name: "Roasted Chickpeas", desc: "\u00BC cup roasted chickpeas with cumin.", iron: 2, protein: 5, sodium: 60, carbs: 12, fiber: 3, vitC: 1 },
+      dinner: { name: "Baked Chicken with Turnip & Carrot Mash", desc: "1 chicken drumstick (skinless), \u00BD cup turnip-carrot mash, steamed broccoli.", iron: 2, protein: 24, sodium: 320, carbs: 18, fiber: 5, vitC: 45 },
+    },
+    { day: "Sunday",
+      breakfast: { name: "Poached Eggs on Saut\u00E9ed Greens", desc: "2 poached eggs over kale & Swiss chard, 1 slice sourdough.", iron: 4, protein: 16, sodium: 260, carbs: 18, fiber: 3, vitC: 35 },
+      lunch: { name: "Leftover Chicken Curry Bowl", desc: "Reheat with extra spinach, \u2153 cup brown rice.", iron: 3, protein: 28, sodium: 340, carbs: 30, fiber: 5, vitC: 14 },
+      snack: { name: "Mango Slices", desc: "\u00BD cup fresh mango.", iron: 0.2, protein: 1, sodium: 0, carbs: 14, fiber: 2, vitC: 30 },
+      dinner: { name: "Pan-Seared Trout with Braised Collards & Quinoa", desc: "4 oz trout, 1 cup braised collards, \u2153 cup quinoa.", iron: 4, protein: 32, sodium: 300, carbs: 24, fiber: 7, vitC: 35 },
+    },
+  ],
+  3: [
+    { day: "Monday",
+      breakfast: { name: "Iron-Fortified Cereal with Strawberries", desc: "1 cup bran flakes, \u00BD cup strawberries, almond milk.", iron: 10, protein: 6, sodium: 200, carbs: 32, fiber: 7, vitC: 42 },
+      lunch: { name: "Grilled Salmon over Kale Salad", desc: "4 oz salmon, 2 cups massaged kale, cranberries, pumpkin seeds, lemon-tahini.", iron: 3, protein: 32, sodium: 280, carbs: 18, fiber: 5, vitC: 80 },
+      snack: { name: "Dried Figs & Almonds", desc: "3 dried figs, 8 almonds.", iron: 2, protein: 4, sodium: 5, carbs: 18, fiber: 4, vitC: 1 },
+      dinner: { name: "Lean Beef & Veggie Stir-Fry", desc: "3 oz lean sirloin, broccoli, bell pepper, snap peas, ginger-garlic sauce, \u2153 cup brown rice.", iron: 4, protein: 28, sodium: 380, carbs: 28, fiber: 5, vitC: 65 },
+    },
+    { day: "Tuesday",
+      breakfast: { name: "Sweet Potato & Black Bean Breakfast Bowl", desc: "\u00BD cup roasted sweet potato, \u00BC cup black beans, 1 egg, salsa, cilantro.", iron: 3, protein: 14, sodium: 260, carbs: 30, fiber: 7, vitC: 20 },
+      lunch: { name: "Lentil Soup with Spinach", desc: "1.5 cups red lentil-spinach soup, 1 small whole wheat roll.", iron: 5, protein: 16, sodium: 320, carbs: 36, fiber: 10, vitC: 18 },
+      snack: { name: "Greek Yogurt with Pumpkin Seeds", desc: "\u00BD cup yogurt, 1 tbsp pumpkin seeds, cinnamon.", iron: 2, protein: 14, sodium: 50, carbs: 6, fiber: 1, vitC: 1 },
+      dinner: { name: "Blackened Catfish with Turnip Greens & Corn", desc: "4 oz catfish blackened (no-salt), 1 cup turnip greens, \u00BD ear corn.", iron: 4, protein: 30, sodium: 340, carbs: 22, fiber: 5, vitC: 35 },
+    },
+    { day: "Wednesday",
+      breakfast: { name: "Whole Grain Waffle with Berries & Egg", desc: "1 waffle, \u00BD cup mixed berries, 1 boiled egg.", iron: 3, protein: 12, sodium: 280, carbs: 26, fiber: 4, vitC: 28 },
+      lunch: { name: "Chickpea & Roasted Veggie Wrap", desc: "Whole wheat wrap, roasted chickpeas, zucchini, tahini, arugula.", iron: 3, protein: 14, sodium: 340, carbs: 34, fiber: 8, vitC: 15 },
+      snack: { name: "Cantaloupe Cubes", desc: "1 cup cantaloupe.", iron: 0.3, protein: 1, sodium: 25, carbs: 14, fiber: 1, vitC: 58 },
+      dinner: { name: "Herb Roasted Chicken with Root Vegetables", desc: "4 oz chicken breast, roasted turnip, parsnip, carrots with rosemary.", iron: 2, protein: 32, sodium: 300, carbs: 22, fiber: 5, vitC: 22 },
+    },
+    { day: "Thursday",
+      breakfast: { name: "Spinach & Cheese Egg Scramble", desc: "2 eggs, 1 cup spinach, 1 oz goat cheese, whole grain toast.", iron: 4, protein: 22, sodium: 320, carbs: 16, fiber: 3, vitC: 12 },
+      lunch: { name: "Fish & White Bean Salad", desc: "3 oz canned mackerel, \u00BD cup white beans, arugula, tomato, lemon-olive oil.", iron: 4, protein: 24, sodium: 350, carbs: 20, fiber: 6, vitC: 16 },
+      snack: { name: "Frozen Grapes", desc: "1 cup frozen red grapes.", iron: 0.5, protein: 1, sodium: 0, carbs: 16, fiber: 1, vitC: 4 },
+      dinner: { name: "Braised Turnip & Chicken Thigh Stew", desc: "4 oz chicken thigh, 1 cup cubed turnip, carrots, onion, low-sodium broth.", iron: 3, protein: 30, sodium: 350, carbs: 22, fiber: 5, vitC: 20 },
+    },
+    { day: "Friday",
+      breakfast: { name: "PB & Banana Oatmeal", desc: "\u00BD cup oats, \u00BD banana, 1 tbsp peanut butter, cinnamon.", iron: 3, protein: 12, sodium: 60, carbs: 36, fiber: 5, vitC: 5 },
+      lunch: { name: "Grilled Shrimp & Mango Salad", desc: "4 oz shrimp, \u00BD cup mango, greens, red onion, cilantro-lime dressing.", iron: 3, protein: 24, sodium: 300, carbs: 18, fiber: 3, vitC: 45 },
+      snack: { name: "Rice Cake with Cottage Cheese", desc: "1 rice cake, 3 tbsp cottage cheese, tomato slice.", iron: 0.5, protein: 6, sodium: 120, carbs: 10, fiber: 0, vitC: 4 },
+      dinner: { name: "Baked Cod with Mustard Greens & Sweet Potato", desc: "4 oz cod, 1.5 cups mustard greens, \u00BD small sweet potato.", iron: 4, protein: 30, sodium: 320, carbs: 26, fiber: 6, vitC: 42 },
+    },
+    { day: "Saturday",
+      breakfast: { name: "Veggie Frittata Slice", desc: "1 slice frittata (eggs, bell pepper, onion, spinach), side fruit.", iron: 3, protein: 16, sodium: 250, carbs: 12, fiber: 3, vitC: 35 },
+      lunch: { name: "Black Bean & Corn Salad over Greens", desc: "\u00BD cup black beans, corn, tomato, avocado, lime dressing, greens.", iron: 3, protein: 12, sodium: 260, carbs: 30, fiber: 9, vitC: 22 },
+      snack: { name: "Apple & Cheddar", desc: "1 small apple, 1 oz low-sodium cheddar.", iron: 0.3, protein: 7, sodium: 100, carbs: 18, fiber: 3, vitC: 6 },
+      dinner: { name: "Pan-Seared Snapper with Kale & Wild Rice", desc: "4 oz snapper, 1 cup braised kale, \u2153 cup wild rice.", iron: 3, protein: 32, sodium: 300, carbs: 24, fiber: 5, vitC: 80 },
+    },
+    { day: "Sunday",
+      breakfast: { name: "Smoked Salmon on Whole Grain Toast", desc: "2 oz low-sodium smoked salmon, light cream cheese, capers, toast.", iron: 1, protein: 16, sodium: 380, carbs: 16, fiber: 2, vitC: 4 },
+      lunch: { name: "Roasted Beet & Goat Cheese Salad", desc: "1 cup roasted beets, 1 oz goat cheese, arugula, walnuts, balsamic.", iron: 2, protein: 10, sodium: 220, carbs: 18, fiber: 4, vitC: 8 },
+      snack: { name: "Smoothie: Mango-Spinach", desc: "\u00BD cup mango, 1 cup spinach, almond milk, 1 tbsp flaxseed.", iron: 2, protein: 4, sodium: 60, carbs: 18, fiber: 4, vitC: 35 },
+      dinner: { name: "Slow-Cooker Turnip & Chicken Soup", desc: "4 oz chicken, turnip root, carrots, celery, herbs, low-sodium broth. 1 roll.", iron: 3, protein: 30, sodium: 340, carbs: 28, fiber: 6, vitC: 18 },
+    },
+  ],
+  4: [
+    { day: "Monday",
+      breakfast: { name: "Egg & Veggie Breakfast Burrito", desc: "Whole wheat tortilla, 2 scrambled eggs, saut\u00E9ed peppers & onions, salsa.", iron: 3, protein: 18, sodium: 360, carbs: 24, fiber: 4, vitC: 30 },
+      lunch: { name: "Grilled Mackerel with Arugula & Quinoa", desc: "3 oz mackerel, arugula, quinoa, cherry tomatoes, lemon vinaigrette.", iron: 3, protein: 26, sodium: 280, carbs: 22, fiber: 4, vitC: 18 },
+      snack: { name: "Pear & Walnuts", desc: "1 small pear, 6 walnut halves.", iron: 0.5, protein: 3, sodium: 0, carbs: 18, fiber: 4, vitC: 5 },
+      dinner: { name: "Braised Collard Greens with White Beans & Cornbread", desc: "1.5 cups collards, \u00BD cup white beans, smoked turkey seasoning, 1 cornbread muffin.", iron: 5, protein: 18, sodium: 380, carbs: 34, fiber: 9, vitC: 35 },
+    },
+    { day: "Tuesday",
+      breakfast: { name: "Greek Yogurt Parfait with Granola", desc: "\u00BD cup Greek yogurt, 2 tbsp low-sugar granola, \u00BD cup mixed berries.", iron: 1, protein: 14, sodium: 60, carbs: 22, fiber: 3, vitC: 28 },
+      lunch: { name: "Salmon Cake with Side Salad", desc: "2 small baked salmon cakes, mixed green salad, lemon dressing.", iron: 2, protein: 24, sodium: 340, carbs: 14, fiber: 3, vitC: 14 },
+      snack: { name: "Edamame", desc: "\u00BD cup shelled edamame.", iron: 2, protein: 9, sodium: 5, carbs: 5, fiber: 4, vitC: 5 },
+      dinner: { name: "Turkey Chili with Turnip & Beans", desc: "1.5 cups turkey chili with kidney beans, diced turnip, tomatoes, mild spices.", iron: 5, protein: 28, sodium: 380, carbs: 30, fiber: 10, vitC: 28 },
+    },
+    { day: "Wednesday",
+      breakfast: { name: "Avocado Toast with Poached Egg", desc: "1 slice whole grain, \u00BC avocado, 1 poached egg, salt-free everything seasoning.", iron: 2, protein: 12, sodium: 200, carbs: 18, fiber: 5, vitC: 6 },
+      lunch: { name: "Split Pea Soup with Carrots", desc: "1.5 cups split pea soup, carrots, celery. 4 whole wheat crackers.", iron: 4, protein: 16, sodium: 320, carbs: 36, fiber: 12, vitC: 10 },
+      snack: { name: "Clementine & Almonds", desc: "2 clementines, 8 almonds.", iron: 0.5, protein: 4, sodium: 0, carbs: 18, fiber: 3, vitC: 50 },
+      dinner: { name: "Baked Tilapia with Garlic Turnip Greens & Brown Rice", desc: "4 oz tilapia, 1.5 cups turnip greens, \u2153 cup brown rice.", iron: 4, protein: 32, sodium: 300, carbs: 24, fiber: 5, vitC: 35 },
+    },
+    { day: "Thursday",
+      breakfast: { name: "Iron-Fortified Oatmeal with Prunes", desc: "\u00BD cup fortified oats, 3 stewed prunes, 1 tbsp walnuts, cinnamon.", iron: 8, protein: 8, sodium: 10, carbs: 32, fiber: 5, vitC: 2 },
+      lunch: { name: "Tuna & White Bean Salad", desc: "3 oz tuna, \u00BD cup white beans, celery, red onion, olive oil, lemon. Over greens.", iron: 3, protein: 28, sodium: 300, carbs: 18, fiber: 6, vitC: 10 },
+      snack: { name: "Banana", desc: "1 small banana.", iron: 0.3, protein: 1, sodium: 0, carbs: 22, fiber: 3, vitC: 8 },
+      dinner: { name: "Herb Chicken with Roasted Root Medley", desc: "4 oz chicken breast, roasted turnip, sweet potato, beets, fresh thyme.", iron: 2, protein: 32, sodium: 320, carbs: 26, fiber: 6, vitC: 22 },
+    },
+    { day: "Friday",
+      breakfast: { name: "Cottage Cheese & Peach Bowl", desc: "\u00BD cup low-sodium cottage cheese, \u00BD cup peaches, 1 tbsp flaxseed.", iron: 1, protein: 14, sodium: 230, carbs: 14, fiber: 3, vitC: 5 },
+      lunch: { name: "Vegetable & Lentil Stew", desc: "1.5 cups lentil stew with kale, carrots, celery, cumin.", iron: 5, protein: 16, sodium: 300, carbs: 32, fiber: 10, vitC: 28 },
+      snack: { name: "Hummus & Bell Pepper Strips", desc: "3 tbsp hummus, \u00BD bell pepper sliced.", iron: 1, protein: 4, sodium: 100, carbs: 10, fiber: 3, vitC: 60 },
+      dinner: { name: "Pan-Seared Snapper with Collards & Quinoa", desc: "4 oz snapper, 1 cup braised collards, \u2153 cup quinoa.", iron: 4, protein: 32, sodium: 300, carbs: 22, fiber: 6, vitC: 35 },
+    },
+    { day: "Saturday",
+      breakfast: { name: "Whole Wheat Pancakes with Blueberry Compote", desc: "2 small pancakes, \u00BD cup blueberry compote (no sugar), 1 egg.", iron: 3, protein: 14, sodium: 260, carbs: 30, fiber: 4, vitC: 8 },
+      lunch: { name: "Shrimp & Avocado Salad", desc: "4 oz shrimp, \u00BC avocado, greens, corn, black beans, lime dressing.", iron: 3, protein: 26, sodium: 320, carbs: 20, fiber: 7, vitC: 18 },
+      snack: { name: "Dried Apricots", desc: "5 dried apricots.", iron: 2, protein: 1, sodium: 5, carbs: 16, fiber: 2, vitC: 1 },
+      dinner: { name: "Braised Mustard Greens with Smoked Turkey & Sweet Potato", desc: "1.5 cups mustard greens, 2 oz smoked turkey, \u00BD baked sweet potato.", iron: 5, protein: 22, sodium: 380, carbs: 30, fiber: 7, vitC: 42 },
+    },
+    { day: "Sunday",
+      breakfast: { name: "Veggie Egg Cups & Fruit", desc: "2 egg muffin cups (spinach, tomato, mushroom), \u00BD cup mixed berries.", iron: 3, protein: 14, sodium: 180, carbs: 12, fiber: 3, vitC: 28 },
+      lunch: { name: "Fish Soup (cioppino-style)", desc: "1.5 cups soup with cod, shrimp, tomatoes, fennel, low-sodium broth. 1 slice sourdough.", iron: 3, protein: 26, sodium: 360, carbs: 22, fiber: 4, vitC: 30 },
+      snack: { name: "Apple with Peanut Butter", desc: "1 small apple, 1 tbsp peanut butter.", iron: 0.5, protein: 5, sodium: 40, carbs: 22, fiber: 4, vitC: 6 },
+      dinner: { name: "Celebration: Baked Salmon, Turnip Greens, Black-Eyed Peas & Cornbread", desc: "4 oz salmon, 1 cup turnip greens, \u00BD cup black-eyed peas, 1 small cornbread muffin. A healing feast.", iron: 5, protein: 34, sodium: 380, carbs: 34, fiber: 9, vitC: 35 },
+    },
+  ],
+};
+
+const groceryList = {
+  "Proteins": { emoji: "\u{1F41F}", items: [
+    "Wild salmon fillets (2 lbs)", "Tilapia fillets (1 lb)", "Cod fillets (1 lb)", "Rainbow trout (1 lb)",
+    "Catfish fillets (1 lb)", "Red snapper fillets (1 lb)", "Grouper fillets (\u00BD lb)", "Shrimp, peeled (2 lbs)",
+    "Sardines, water-packed (2 cans)", "Canned salmon (2 cans)", "Canned tuna, water-packed (3 cans)",
+    "Chicken breasts, skinless (2 lbs)", "Chicken thighs, skinless (1 lb)",
+    "Chicken drumsticks, skinless (4 pcs)", "Ground turkey, lean (1 lb)", "Smoked turkey (low-sodium, 1 lb)",
+    "Lean sirloin steak (\u00BD lb)", "Eggs, large (3 dozen)",
+  ]},
+  "Greens & Vegetables": { emoji: "\u{1F96C}", items: [
+    "Collard greens (4 bunches)", "Turnip greens (4 bunches)", "Mustard greens (3 bunches)",
+    "Baby spinach (3 bags)", "Kale, curly (3 bunches)", "Swiss chard (1 bunch)",
+    "Arugula (2 bags)", "Mixed salad greens (2 bags)", "Bok choy (2 heads)",
+    "Turnip roots (4 lbs)", "Sweet potatoes (3 lbs)", "Carrots (3 lbs)", "Parsnips (1 lb)",
+    "Beets (1 lb)", "Broccoli (2 heads)", "Green beans (1 lb)", "Asparagus (1 bunch)",
+    "Zucchini (3)", "Bell peppers, mixed (6)", "Snap peas (\u00BD lb)",
+    "Celery (2 bunches)", "Cucumber (4)", "Cherry tomatoes (2 pints)",
+    "Tomatoes (4)", "Yellow onions (3 lbs)", "Red onion (2)",
+    "Garlic (3 heads)", "Fresh ginger root (1 piece)", "Mushrooms (1 lb)",
+    "Corn on cob (2 ears)", "Green cabbage (1 small)", "Fennel (1 bulb)",
+  ]},
+  "Fresh Fruits": { emoji: "\u{1F353}", items: [
+    "Bananas (1 bunch)", "Strawberries (2 lbs)", "Blueberries (2 pints)",
+    "Frozen mixed berries (1 bag)", "Oranges (4)", "Clementines (6)",
+    "Lemons (6)", "Limes (4)", "Apples (6)", "Pears (4)",
+    "Peaches (4)", "Mango (2)", "Kiwi (3)", "Cantaloupe (1)",
+    "Red grapes (1 lb)", "Avocados (4)", "Grapefruit (2)",
+    "Dried prunes (1 bag)", "Dried apricots (1 bag)", "Dried figs (1 bag)",
+    "Dried cranberries (1 small bag)",
+  ]},
+  "Beans & Legumes": { emoji: "\u{1FAD8}", items: [
+    "Black beans, low-sodium (4 cans)", "Black-eyed peas, low-sodium (3 cans)",
+    "Cannellini/white beans (3 cans)", "Chickpeas (3 cans)",
+    "Kidney beans (1 can)", "Red lentils, dried (1 lb)",
+    "Green lentils, dried (1 lb)", "Split peas, dried (1 lb)",
+    "Lima beans, frozen (1 bag)", "Edamame, frozen (1 bag)",
+  ]},
+  "Whole Grains": { emoji: "\u{1F33E}", items: [
+    "Brown rice (2 lbs)", "Quinoa (1 lb)", "Wild rice (\u00BD lb)",
+    "Steel-cut oats (1 canister)", "Rolled oats (1 canister)",
+    "Iron-fortified bran flakes (1 box)", "Iron-fortified cream of wheat (1 box)",
+    "Whole wheat bread (2 loaves)", "Whole grain tortillas, low-sodium (1 pkg)",
+    "Corn tortillas (1 pkg)", "Whole wheat crackers (1 box)",
+    "Cornmeal, self-rising (1 bag)", "Brown rice noodles (1 pkg)",
+    "Rice cakes (1 pkg)", "Sourdough bread (1 loaf)",
+  ]},
+  "Dairy & Alternatives": { emoji: "\u{1F95B}", items: [
+    "Plain Greek yogurt (32 oz)", "Low-sodium cottage cheese (16 oz)",
+    "String cheese, part-skim (1 pkg)", "Goat cheese (4 oz)",
+    "Feta cheese (4 oz)", "Low-sodium cheddar (4 oz)", "Light cream cheese (4 oz)",
+    "Unsweetened almond milk (\u00BD gallon)", "Coconut milk, lite (2 cans)",
+  ]},
+  "Nuts, Seeds & Fats": { emoji: "\u{1F95C}", items: [
+    "Almonds, raw (\u00BD lb)", "Walnuts (\u00BD lb)", "Pumpkin seeds (\u00BD lb)",
+    "Ground flaxseed (1 bag)", "Chia seeds (1 bag)",
+    "Natural peanut butter (1 jar)", "Almond butter (1 jar)",
+    "Extra virgin olive oil (1 bottle)", "Tahini (1 jar)",
+  ]},
+  "Herbs & Spices (NO SALT)": { emoji: "\u{1F33F}", items: [
+    "Fresh cilantro (2 bunches)", "Fresh basil (1 bunch)", "Fresh dill (1 bunch)",
+    "Fresh rosemary (1 bunch)", "Fresh thyme (1 bunch)", "Fresh parsley (1 bunch)",
+    "Cumin, ground", "Turmeric, ground", "Cinnamon, ground", "Paprika",
+    "Cajun seasoning (salt-free)", "Everything seasoning (salt-free)",
+    "Black pepper", "Garlic powder", "Onion powder",
+    "Coconut aminos (soy sauce alt)", "Apple cider vinegar",
+    "Balsamic vinegar", "Dijon mustard (low-sodium)",
+  ]},
+  "Pantry Staples": { emoji: "\u{1F3EA}", items: [
+    "Low-sodium chicken broth (6 cartons)", "Low-sodium vegetable broth (2 cartons)",
+    "No-salt diced tomatoes (4 cans)", "Tomato paste, no-salt (2 cans)",
+    "Salsa, low-sodium (1 jar)", "Hummus or ingredients to make fresh",
+    "Honey, raw (1 small jar)", "Plant protein powder (1 container)",
+    "Low-sugar granola (1 small bag)",
+  ]},
+};
+
+// ──── COMPONENTS ────
+
+function NutrientRing(props) {
+  const pct = Math.min((props.value / props.target) * 100, 100);
+  const r = 30, circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  const sc = pct >= 90 ? "#27AE60" : pct >= 60 ? "#F39C12" : "#E74C3C";
+  return e("div", { style: { textAlign: "center", minWidth: 80 } },
+    e("svg", { width: 68, height: 68, viewBox: "0 0 68 68" },
+      e("circle", { cx: 34, cy: 34, r, fill: "none", stroke: "#1a1a2e", strokeWidth: 5 }),
+      e("circle", { cx: 34, cy: 34, r, fill: "none", stroke: props.color, strokeWidth: 5,
+        strokeDasharray: circ, strokeDashoffset: offset, strokeLinecap: "round",
+        transform: "rotate(-90 34 34)", style: { transition: "stroke-dashoffset 0.6s ease" } }),
+      e("text", { x: 34, y: 32, textAnchor: "middle", fill: "#e0e0e0", fontSize: 12, fontWeight: 700 }, Math.round(pct) + "%"),
+      e("text", { x: 34, y: 44, textAnchor: "middle", fill: sc, fontSize: 11 }, pct >= 90 ? "\u2713" : pct >= 60 ? "\u2192" : "!"),
+    ),
+    e("div", { style: { fontSize: 10, color: "#b0b0b0", marginTop: 2 } }, props.label),
+    e("div", { style: { fontSize: 9, color: "#666" } }, props.value + "/" + props.target + props.unit),
+  );
+}
+
+function MealCard(props) {
+  const [open, setOpen] = useState(false);
+  const m = props.meal;
+  const tc = { breakfast: "#F39C12", lunch: "#3498DB", snack: "#9B59B6", dinner: "#27AE60" };
+  const icons = { breakfast: "\u{1F305}", lunch: "\u2600\uFE0F", snack: "\u{1F34E}", dinner: "\u{1F319}" };
+  return e("div", { onClick: function() { setOpen(!open); }, style: {
+    background: "linear-gradient(135deg, #16213e, #1a1a2e)", borderRadius: 12, padding: "12px 14px",
+    marginBottom: 8, cursor: "pointer", border: "1px solid " + (open ? tc[props.type] + "66" : "#2a2a4a"),
+    transition: "all 0.3s ease", WebkitUserSelect: "none",
+  }},
+    e("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+      e("div", { style: { display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 } },
+        e("span", { style: { fontSize: 18, flexShrink: 0 } }, icons[props.type]),
+        e("div", { style: { minWidth: 0 } },
+          e("div", { style: { fontSize: 9, textTransform: "uppercase", letterSpacing: 1, color: tc[props.type], fontWeight: 600 } }, props.type),
+          e("div", { style: { fontSize: 13, color: "#e0e0e0", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: open ? "normal" : "nowrap" } }, m.name),
+        ),
+      ),
+      e("div", { style: { display: "flex", gap: 6, alignItems: "center", flexShrink: 0, marginLeft: 8 } },
+        e("span", { style: { fontSize: 9, color: "#888", background: "#0d1117", padding: "2px 5px", borderRadius: 4 } }, "\u{1FA78} " + m.iron + "mg"),
+        e("span", { style: { fontSize: 13, color: "#555", transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" } }, "\u25BC"),
+      ),
+    ),
+    open ? e("div", { style: { marginTop: 10, paddingTop: 10, borderTop: "1px solid #2a2a4a" } },
+      e("p", { style: { fontSize: 12, color: "#a0a0a0", margin: "0 0 8px", lineHeight: 1.5 } }, m.desc),
+      e("div", { style: { display: "flex", flexWrap: "wrap", gap: 5 } },
+        [{ l: "Iron", v: m.iron, u: "mg", c: "#27AE60" }, { l: "Protein", v: m.protein, u: "g", c: "#3498DB" },
+         { l: "Carbs", v: m.carbs, u: "g", c: "#9B59B6" }, { l: "Fiber", v: m.fiber, u: "g", c: "#F39C12" },
+         { l: "Na", v: m.sodium, u: "mg", c: "#E74C3C" }, { l: "Vit C", v: m.vitC, u: "mg", c: "#E67E22" }
+        ].map(function(n) {
+          return e("span", { key: n.l, style: { fontSize: 10, padding: "2px 5px", borderRadius: 4, background: n.c + "15", color: n.c, border: "1px solid " + n.c + "33" } }, n.l + ": " + n.v + n.u);
+        })
+      ),
+    ) : null,
+  );
+}
+
+function GrocerySection(props) {
+  const [open, setOpen] = useState(false);
+  const [checked, setChecked] = useState({});
+  function toggle(idx) { setChecked(function(p) { var n = Object.assign({}, p); n[idx] = !n[idx]; return n; }); }
+  var done = Object.values(checked).filter(Boolean).length;
+  return e("div", { style: { background: "#16213e", borderRadius: 12, marginBottom: 8, overflow: "hidden" } },
+    e("div", { onClick: function() { setOpen(!open); }, style: { padding: "12px 14px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" } },
+      e("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+        e("span", { style: { fontSize: 20 } }, props.emoji),
+        e("span", { style: { color: "#e0e0e0", fontWeight: 600, fontSize: 14 } }, props.title),
+      ),
+      e("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
+        e("span", { style: { fontSize: 11, color: done === props.items.length ? "#27AE60" : "#888" } }, done + "/" + props.items.length),
+        e("span", { style: { fontSize: 12, color: "#555", transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" } }, "\u25BC"),
+      ),
+    ),
+    open ? e("div", { style: { padding: "0 14px 12px" } },
+      props.items.map(function(item, i) {
+        return e("div", { key: i, onClick: function(ev) { ev.stopPropagation(); toggle(i); }, style: {
+          display: "flex", alignItems: "center", gap: 8, padding: "7px 0",
+          borderBottom: i < props.items.length - 1 ? "1px solid #1a1a2e" : "none", cursor: "pointer",
+        }},
+          e("div", { style: {
+            width: 20, height: 20, borderRadius: 5, border: "2px solid " + (checked[i] ? "#27AE60" : "#444"),
+            background: checked[i] ? "#27AE60" : "transparent", display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.2s", flexShrink: 0,
+          }}, checked[i] ? e("span", { style: { color: "#fff", fontSize: 12 } }, "\u2713") : null),
+          e("span", { style: { fontSize: 13, color: checked[i] ? "#666" : "#b0b0b0", textDecoration: checked[i] ? "line-through" : "none", transition: "all 0.2s", lineHeight: 1.4 } }, item),
+        );
+      })
+    ) : null,
+  );
+}
+
+// ──── MAIN APP ────
+
+function App() {
+  const [activeWeek, setActiveWeek] = useState(1);
+  const [activeDay, setActiveDay] = useState(0);
+  const [view, setView] = useState("plan");
+
+  var weekDays = mealPlan[activeWeek];
+  var today = weekDays[activeDay];
+  var dt = {};
+  ["iron","protein","sodium","carbs","fiber","vitC"].forEach(function(k) {
+    dt[k] = today.breakfast[k] + today.lunch[k] + today.snack[k] + today.dinner[k];
+  });
+
+  return e("div", { style: { maxWidth: 520, margin: "0 auto", minHeight: "100vh" } },
+    // Header
+    e("div", { style: { background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", padding: "24px 16px 16px", borderBottom: "1px solid #2a2a4a" } },
+      e("div", { style: { fontSize: 10, textTransform: "uppercase", letterSpacing: 2, color: "#E67E22", fontWeight: 600 } }, "Recovery Nutrition Plan"),
+      e("div", { style: { fontSize: 22, fontWeight: 700, marginTop: 4, background: "linear-gradient(90deg, #e0e0e0, #F39C12)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" } }, "Emma Dee Epting"),
+      e("div", { style: { fontSize: 11, color: "#888", marginTop: 4 } }, "4-Week Therapeutic Meal Plan \u00B7 Post-Hemorrhagic Recovery"),
+      // Nav
+      e("div", { style: { display: "flex", gap: 4, marginTop: 14, background: "#0d1117", borderRadius: 8, padding: 3 } },
+        [{ id: "plan", label: "\u{1F37D}\uFE0F Meals" }, { id: "grocery", label: "\u{1F6D2} Grocery" }, { id: "guide", label: "\u{1F4CB} Rules" }].map(function(t) {
+          return e("button", { key: t.id, onClick: function() { setView(t.id); }, style: {
+            flex: 1, padding: "9px 4px", background: view === t.id ? "#1a1a2e" : "transparent",
+            border: view === t.id ? "1px solid #2a2a4a" : "1px solid transparent", borderRadius: 6,
+            color: view === t.id ? "#F39C12" : "#666", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+          } }, t.label);
+        })
+      ),
+    ),
+    // Content
+    e("div", { style: { padding: "12px 12px 100px" } },
+      // MEAL PLAN VIEW
+      view === "plan" ? e("div", null,
+        // Week buttons
+        e("div", { style: { display: "flex", gap: 4, marginBottom: 10 } },
+          [1,2,3,4].map(function(w) {
+            return e("button", { key: w, onClick: function() { setActiveWeek(w); setActiveDay(0); }, style: {
+              flex: 1, padding: "8px 6px", background: activeWeek === w ? "#F39C12" : "#16213e",
+              border: "none", borderRadius: 8, color: activeWeek === w ? "#0d1117" : "#888",
+              fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+            } }, "Wk " + w);
+          })
+        ),
+        e("div", { style: { fontSize: 13, color: "#F39C12", fontWeight: 600, marginBottom: 10 } }, WEEK_LABELS[activeWeek - 1]),
+        // Day buttons
+        e("div", { style: { display: "flex", gap: 3, marginBottom: 14 } },
+          weekDays.map(function(d, i) {
+            return e("button", { key: i, onClick: function() { setActiveDay(i); }, style: {
+              flex: 1, padding: "7px 2px", background: activeDay === i ? "#3498DB" : "#16213e",
+              border: "none", borderRadius: 6, color: activeDay === i ? "#fff" : "#666",
+              fontSize: 10, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+            } }, d.day.slice(0, 3));
+          })
+        ),
+        // Nutrient rings
+        e("div", { style: { display: "flex", justifyContent: "space-around", flexWrap: "wrap", gap: 6, background: "#16213e", borderRadius: 12, padding: "12px 6px", marginBottom: 14, border: "1px solid #2a2a4a" } },
+          Object.entries(DIETARY_GOALS).map(function(entry) {
+            return e(NutrientRing, { key: entry[0], value: dt[entry[0]], target: entry[1].target, label: entry[1].label, color: entry[1].color, unit: entry[1].unit });
+          })
+        ),
+        // Sodium warning
+        dt.sodium > 1500 ? e("div", { style: { background: "#E74C3C15", border: "1px solid #E74C3C33", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 11, color: "#E74C3C" } },
+          "\u26A0\uFE0F Sodium is above 1,500mg target today."
+        ) : null,
+        // Meal cards
+        e(MealCard, { meal: today.breakfast, type: "breakfast" }),
+        e(MealCard, { meal: today.lunch, type: "lunch" }),
+        e(MealCard, { meal: today.snack, type: "snack" }),
+        e(MealCard, { meal: today.dinner, type: "dinner" }),
+        // Daily totals bar
+        e("div", { style: { background: "#16213e", borderRadius: 12, padding: 12, marginTop: 8, border: "1px solid #2a2a4a" } },
+          e("div", { style: { fontSize: 11, color: "#888", marginBottom: 8, fontWeight: 600 } }, "DAILY TOTALS"),
+          e("div", { style: { display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 } },
+            [{ l: "Iron", v: dt.iron, t: 18, u: "mg", c: "#27AE60" }, { l: "Protein", v: dt.protein, t: 65, u: "g", c: "#3498DB" },
+             { l: "Sodium", v: dt.sodium, t: 1500, u: "mg", c: dt.sodium <= 1500 ? "#27AE60" : "#E74C3C" },
+             { l: "Carbs", v: dt.carbs, t: 135, u: "g", c: "#9B59B6" }
+            ].map(function(n) {
+              return e("div", { key: n.l, style: { textAlign: "center", minWidth: 65 } },
+                e("div", { style: { fontSize: 16, fontWeight: 700, color: n.c } }, n.v, e("span", { style: { fontSize: 10, color: "#888" } }, n.u)),
+                e("div", { style: { fontSize: 10, color: "#666" } }, n.l),
+                e("div", { style: { width: "100%", height: 3, background: "#1a1a2e", borderRadius: 2, marginTop: 3 } },
+                  e("div", { style: { width: Math.min((n.v / n.t) * 100, 100) + "%", height: "100%", background: n.c, borderRadius: 2, transition: "width 0.5s" } })
+                ),
+              );
+            })
+          ),
+        ),
+      ) : null,
+
+      // GROCERY VIEW
+      view === "grocery" ? e("div", null,
+        e("div", { style: { fontSize: 14, color: "#F39C12", fontWeight: 600, marginBottom: 4 } }, "4-Week Grocery List"),
+        e("div", { style: { fontSize: 11, color: "#666", marginBottom: 14 } }, "Tap categories to expand \u00B7 Check items as you shop"),
+        Object.entries(groceryList).map(function(entry) {
+          return e(GrocerySection, { key: entry[0], title: entry[0], items: entry[1].items, emoji: entry[1].emoji });
+        })
+      ) : null,
+
+      // DIET RULES VIEW
+      view === "guide" ? e("div", null,
+        e("div", { style: { fontSize: 14, color: "#F39C12", fontWeight: 600, marginBottom: 4 } }, "Emma's Dietary Rules"),
+        e("div", { style: { fontSize: 11, color: "#666", marginBottom: 14 } }, "Based on her medical records & current recovery"),
+        CONDITIONS.map(function(c, i) {
+          var bc = c.status === "critical" ? "#E74C3C" : c.status === "warning" ? "#F39C12" : "#3498DB";
+          return e("div", { key: i, style: { background: "#16213e", borderRadius: 10, padding: "10px 14px", marginBottom: 6, borderLeft: "3px solid " + bc } },
+            e("div", { style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 4 } },
+              e("span", { style: { fontSize: 16 } }, c.icon),
+              e("span", { style: { fontSize: 13, fontWeight: 600, color: "#e0e0e0" } }, c.name),
+              e("span", { style: { fontSize: 9, padding: "1px 6px", borderRadius: 4, marginLeft: "auto", background: bc + "22", color: bc, textTransform: "uppercase", fontWeight: 600, letterSpacing: 0.5 } }, c.status),
+            ),
+            e("div", { style: { fontSize: 11, color: "#a0a0a0", lineHeight: 1.5 } }, c.rule),
+          );
+        }),
+        // Med interactions
+        e("div", { style: { background: "linear-gradient(135deg, #0f3460, #16213e)", borderRadius: 12, padding: 14, marginTop: 14, border: "1px solid #F39C1233" } },
+          e("div", { style: { fontSize: 12, fontWeight: 700, color: "#F39C12", marginBottom: 8 } }, "\u2695\uFE0F MEDICATION-FOOD INTERACTIONS"),
+          ["Rosuvastatin: Avoid grapefruit juice (OK to eat grapefruit hours apart from bedtime dose)",
+           "Iron-rich foods: Pair with Vitamin C for absorption. Separate from dairy by 2 hours",
+           "Pantoprazole: Take 30 min before breakfast. Avoid peppermint",
+           "Lovenox/Aspirin: Keep Vitamin K intake CONSISTENT daily",
+           "Entresto: Avoid high-potassium salt substitutes",
+          ].map(function(tip, i) {
+            return e("div", { key: i, style: { fontSize: 11, color: "#b0b0b0", padding: "5px 0", borderBottom: i < 4 ? "1px solid #1a1a2e" : "none", lineHeight: 1.5 } }, "\u{1F48A} " + tip);
+          })
+        ),
+        // Safety reminder
+        e("div", { style: { background: "#E74C3C11", border: "1px solid #E74C3C33", borderRadius: 10, padding: 14, marginTop: 12 } },
+          e("div", { style: { fontSize: 12, fontWeight: 700, color: "#E74C3C", marginBottom: 6 } }, "\u26A0\uFE0F SAFETY REMINDER"),
+          e("div", { style: { fontSize: 11, color: "#b0b0b0", lineHeight: 1.6 } },
+            "Always confirm dietary changes with Emma's attending physician or rehab dietitian, especially regarding her recovering kidneys, blood thinner regimen, and sensitive stomach. This plan is a guide \u2014 her care team has the final word."
+          ),
+        ),
+      ) : null,
+    ),
+  );
+}
+
+ReactDOM.render(e(App), document.getElementById("root"));
+</script>
+</body>
+</html>
